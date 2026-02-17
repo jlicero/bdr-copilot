@@ -19,12 +19,16 @@ export default function SignOutButton() {
     <button
       onClick={handleSignOut}
       style={{
-        padding: "8px 16px",
-        fontSize: 13,
-        border: "1px solid #ccc",
+        padding: "6px 14px",
+        fontSize: 12,
+        fontWeight: 600,
+        border: "1px solid var(--border-strong)",
         borderRadius: 6,
-        background: "#fff",
+        background: "transparent",
+        color: "var(--text-muted)",
         cursor: "pointer",
+        transition: "all 0.15s",
+        letterSpacing: "0.02em",
       }}
     >
       {t.signOut}

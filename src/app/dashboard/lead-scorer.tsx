@@ -69,13 +69,22 @@ export default function LeadScorer() {
   return (
     <div
       style={{
-        padding: 20,
+        padding: "24px",
+        background: "var(--surface)",
         border: "1px solid var(--border)",
-        borderRadius: 8,
+        borderRadius: "var(--card-radius)",
+        boxShadow: "var(--card-shadow)",
         marginTop: 24,
       }}
     >
-      <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 12 }}>
+      <h2
+        style={{
+          fontSize: 16,
+          fontWeight: 700,
+          marginBottom: 16,
+          letterSpacing: "-0.01em",
+        }}
+      >
         {t.leadScoring}
       </h2>
 
@@ -85,31 +94,38 @@ export default function LeadScorer() {
         rows={10}
         style={{
           width: "100%",
-          fontFamily: "monospace",
+          fontFamily: '"JetBrains Mono", ui-monospace, monospace',
           fontSize: 13,
-          padding: 12,
-          border: "1px solid var(--border-strong)",
-          borderRadius: 6,
+          lineHeight: 1.6,
+          padding: 14,
+          border: "1px solid var(--input-border)",
+          borderRadius: 8,
           resize: "vertical",
           boxSizing: "border-box",
           background: "var(--input-bg)",
           color: "var(--foreground)",
+          outline: "none",
+          transition: "border-color 0.2s",
         }}
+        onFocus={(e) => (e.target.style.borderColor = "var(--input-focus)")}
+        onBlur={(e) => (e.target.style.borderColor = "var(--input-border)")}
       />
 
       <button
         onClick={handleEvaluate}
         disabled={loading}
         style={{
-          marginTop: 12,
-          padding: "8px 20px",
+          marginTop: 14,
+          padding: "10px 28px",
           fontSize: 14,
-          fontWeight: 500,
-          background: loading ? "var(--btn-bg-disabled)" : "var(--btn-bg)",
-          color: loading ? "#fff" : "var(--background)",
+          fontWeight: 600,
+          background: loading ? "var(--btn-disabled-bg)" : "var(--btn-primary-bg)",
+          color: loading ? "var(--btn-disabled-text)" : "var(--btn-primary-text)",
           border: "none",
-          borderRadius: 6,
+          borderRadius: 8,
           cursor: loading ? "not-allowed" : "pointer",
+          transition: "all 0.2s",
+          letterSpacing: "0.01em",
         }}
       >
         {loading ? t.evaluating : t.evaluate}
@@ -119,11 +135,12 @@ export default function LeadScorer() {
         <div
           style={{
             marginTop: 16,
-            padding: 12,
+            padding: "12px 16px",
             background: "var(--error-bg)",
             color: "var(--error-text)",
-            borderRadius: 6,
+            borderRadius: 8,
             fontSize: 13,
+            border: "1px solid rgba(239, 68, 68, 0.15)",
           }}
         >
           {error}
@@ -134,12 +151,12 @@ export default function LeadScorer() {
         <div
           style={{
             marginTop: 16,
-            padding: 12,
-            background: "var(--surface)",
-            border: "1px solid var(--border)",
-            borderRadius: 6,
+            padding: "12px 16px",
+            background: "var(--sumz-purple-dim)",
+            border: "1px solid rgba(63, 31, 232, 0.2)",
+            borderRadius: 8,
             fontSize: 13,
-            color: "var(--text-muted)",
+            color: "var(--foreground-secondary)",
           }}
         >
           {t.reEvaluateHint}

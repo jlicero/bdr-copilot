@@ -29,16 +29,37 @@ const breakdownKeys: { key: keyof ScoreBreakdown; tKey: keyof Translations; max:
   { key: "strategic", tKey: "strategic", max: 10 },
 ];
 
-const stageBadgeStyle: Record<string, { bg: string; color: string }> = {
-  QUALIFIED: { bg: "var(--badge-green-bg)", color: "var(--badge-green-text)" },
-  EMERGING: { bg: "var(--badge-yellow-bg)", color: "var(--badge-yellow-text)" },
-  NOT_QUALIFIED: { bg: "var(--badge-red-bg)", color: "var(--badge-red-text)" },
+const stageBadgeStyle: Record<string, { bg: string; color: string; border: string }> = {
+  QUALIFIED: {
+    bg: "var(--badge-green-bg)",
+    color: "var(--badge-green-text)",
+    border: "rgba(89, 247, 189, 0.2)",
+  },
+  EMERGING: {
+    bg: "var(--badge-yellow-bg)",
+    color: "var(--badge-yellow-text)",
+    border: "rgba(250, 204, 21, 0.2)",
+  },
+  NOT_QUALIFIED: {
+    bg: "var(--badge-red-bg)",
+    color: "var(--badge-red-text)",
+    border: "rgba(239, 68, 68, 0.2)",
+  },
 };
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div style={{ marginTop: 20 }}>
-      <h3 style={{ fontSize: 13, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-muted)", marginBottom: 8 }}>
+    <div style={{ marginTop: 24 }}>
+      <h3
+        style={{
+          fontSize: 11,
+          fontWeight: 700,
+          textTransform: "uppercase",
+          letterSpacing: "0.08em",
+          color: "var(--text-muted)",
+          marginBottom: 10,
+        }}
+      >
         {title}
       </h3>
       {children}
@@ -49,9 +70,9 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 function BulletList({ items }: { items: string[] }) {
   if (!items || items.length === 0) return null;
   return (
-    <ul style={{ margin: 0, paddingLeft: 18, fontSize: 14, lineHeight: 1.7 }}>
+    <ul style={{ margin: 0, paddingLeft: 18, fontSize: 14, lineHeight: 1.8, color: "var(--foreground-secondary)" }}>
       {items.map((item, i) => (
-        <li key={i}>{item}</li>
+        <li key={i} style={{ marginBottom: 2 }}>{item}</li>
       ))}
     </ul>
   );
@@ -64,23 +85,43 @@ export default function ScoreResult({ data }: { data: ScoreData }) {
   const stageLabel = t[data.stage];
 
   return (
-    <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 0 }}>
+    <div style={{ marginTop: 24, display: "flex", flexDirection: "column", gap: 0 }}>
       {/* Score + Badge header */}
-      <div style={{ display: "flex", alignItems: "center", gap: 16, padding: "16px 0" }}>
-        <span style={{ fontSize: 48, fontWeight: 700, lineHeight: 1 }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 16,
+          padding: "20px 0 16px",
+          borderBottom: "1px solid var(--border)",
+        }}
+      >
+        <span
+          style={{
+            fontSize: 52,
+            fontWeight: 800,
+            lineHeight: 1,
+            background: "linear-gradient(135deg, var(--sumz-purple), var(--sumz-green))",
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+          }}
+        >
           {data.overall_score}
         </span>
-        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <span style={{ fontSize: 14, color: "var(--text-muted)" }}>/ 100</span>
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <span style={{ fontSize: 14, color: "var(--text-muted)", fontWeight: 500 }}>/ 100</span>
           <span
             style={{
               display: "inline-block",
-              padding: "2px 10px",
-              fontSize: 12,
-              fontWeight: 600,
+              padding: "3px 12px",
+              fontSize: 11,
+              fontWeight: 700,
               borderRadius: 9999,
               background: badgeColors.bg,
               color: badgeColors.color,
+              border: `1px solid ${badgeColors.border}`,
+              letterSpacing: "0.03em",
+              textTransform: "uppercase",
             }}
           >
             {stageLabel}
@@ -93,7 +134,7 @@ export default function ScoreResult({ data }: { data: ScoreData }) {
         <div
           style={{
             border: "1px solid var(--border)",
-            borderRadius: 6,
+            borderRadius: 8,
             overflow: "hidden",
           }}
         >
@@ -107,13 +148,15 @@ export default function ScoreResult({ data }: { data: ScoreData }) {
                 style={{
                   display: "flex",
                   alignItems: "center",
-                  padding: "8px 12px",
+                  padding: "10px 14px",
                   fontSize: 13,
                   borderTop: i === 0 ? "none" : "1px solid var(--border)",
-                  background: i % 2 === 0 ? "var(--surface)" : "transparent",
+                  background: i % 2 === 0 ? "var(--surface-alt)" : "transparent",
                 }}
               >
-                <span style={{ width: 80, fontWeight: 500 }}>{t[tKey]}</span>
+                <span style={{ width: 85, fontWeight: 600, fontSize: 12, color: "var(--foreground-secondary)" }}>
+                  {t[tKey]}
+                </span>
                 <div
                   style={{
                     flex: 1,
@@ -121,6 +164,7 @@ export default function ScoreResult({ data }: { data: ScoreData }) {
                     borderRadius: 3,
                     background: "var(--bar-bg)",
                     marginRight: 12,
+                    overflow: "hidden",
                   }}
                 >
                   <div
@@ -128,11 +172,23 @@ export default function ScoreResult({ data }: { data: ScoreData }) {
                       height: "100%",
                       width: `${pct}%`,
                       borderRadius: 3,
-                      background: "var(--bar-fill)",
+                      background: pct >= 70
+                        ? "var(--bar-fill-alt)"
+                        : "var(--bar-fill)",
+                      transition: "width 0.4s ease-out",
                     }}
                   />
                 </div>
-                <span style={{ width: 50, textAlign: "right", fontVariantNumeric: "tabular-nums" }}>
+                <span
+                  style={{
+                    width: 50,
+                    textAlign: "right",
+                    fontVariantNumeric: "tabular-nums",
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: "var(--foreground-secondary)",
+                  }}
+                >
                   {value}/{max}
                 </span>
               </div>
