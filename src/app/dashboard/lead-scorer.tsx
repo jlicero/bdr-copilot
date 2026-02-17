@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import ScoreResult, { type ScoreData } from "./score-result";
 import { useLanguage } from "@/lib/i18n";
 
@@ -23,17 +23,30 @@ export default function LeadScorer() {
   const [result, setResult] = useState<ScoreData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [langChanged, setLangChanged] = useState(false);
+  const prevLang = useRef(lang);
+
+  // Clear stale results when language changes
+  useEffect(() => {
+    if (prevLang.current !== lang) {
+      prevLang.current = lang;
+      if (result) {
+        setResult(null);
+        setLangChanged(true);
+      }
+    }
+  }, [lang, result]);
 
   async function handleEvaluate() {
     setError(null);
     setResult(null);
+    setLangChanged(false);
     setLoading(true);
 
     try {
       const leadData = JSON.parse(input);
-      const requestBody = { ui_language: lang, ...leadData };
-      // TODO: remove after confirming ui_language is sent correctly
-      console.log("[lead-scorer] sending /api/score with ui_language:", requestBody.ui_language, requestBody);
+      // Spread leadData first so ui_language always wins
+      const requestBody = { ...leadData, ui_language: lang };
       const res = await fetch("/api/score", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -114,6 +127,22 @@ export default function LeadScorer() {
           }}
         >
           {error}
+        </div>
+      )}
+
+      {langChanged && !result && !loading && (
+        <div
+          style={{
+            marginTop: 16,
+            padding: 12,
+            background: "var(--surface)",
+            border: "1px solid var(--border)",
+            borderRadius: 6,
+            fontSize: 13,
+            color: "var(--text-muted)",
+          }}
+        >
+          {t.reEvaluateHint}
         </div>
       )}
 

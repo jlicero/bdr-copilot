@@ -35,6 +35,9 @@ const translations = {
     timing: "Timing",
     strategic: "Strategic",
 
+    // Hints
+    reEvaluateHint: "Re-evaluate to regenerate content in the selected language.",
+
     // Stage labels
     QUALIFIED: "Qualified",
     EMERGING: "Emerging",
@@ -63,6 +66,9 @@ const translations = {
     authority: "Autoridad",
     timing: "Oportunidad",
     strategic: "Estratégico",
+
+    // Hints
+    reEvaluateHint: "Vuelve a evaluar para generar el contenido en el idioma seleccionado.",
 
     // Stage labels
     QUALIFIED: "Calificado",

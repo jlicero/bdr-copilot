@@ -37,6 +37,17 @@ function extractJSON(raw: string): unknown {
 // Common English stopwords that should NOT appear when ui_language="es"
 const EN_STOPWORDS = /\b(the|and|is|are|this|that|with|for|but|have|has|was|were|will|would|should|could|their|there|from|about|which|these|those|been|also|they|than|more|into|some|such|when|what|each|very|does|because|between|through|however|without|whether|although|therefore|during|while|within|based|likely|strong|weak|lack|indicates|suggests|potential|company|information|provided|limited)\b/gi;
 
+// Common Spanish stopwords that should NOT appear when ui_language="en"
+const ES_STOPWORDS = /\b(el|la|los|las|que|para|con|sin|por|una|del|como|pero|sobre|esta|este|entre|puede|tiene|han|sido|son|desde|siendo|aunque|hacia|según|además|también|cada|debe|porque|durante|mediante|cualquier|posible|indica|sugiere|empresa|información|limitada|proporcionada)\b/gi;
+
+const TEXT_FIELDS_TO_CHECK = [
+  "reasons",
+  "unknowns",
+  "red_flags",
+  "discovery_questions",
+  "next_best_actions",
+] as const;
+
 /**
  * Checks if text fields appear to be in the wrong language.
  * Returns true if language looks wrong.
@@ -45,29 +56,27 @@ function isWrongLanguage(
   parsed: Record<string, any>,
   expectedLang: "en" | "es"
 ): boolean {
-  if (expectedLang !== "es") return false; // only check ES for now
-
-  const textFields = [
-    ...(parsed.reasons ?? []),
-    ...(parsed.unknowns ?? []),
-    ...(parsed.red_flags ?? []),
-    ...(parsed.discovery_questions ?? []),
-    ...(parsed.next_best_actions ?? []),
-  ];
+  const textFields: string[] = [];
+  for (const field of TEXT_FIELDS_TO_CHECK) {
+    textFields.push(...(parsed[field] ?? []));
+  }
 
   const combined = textFields.join(" ");
   if (!combined) return false;
 
-  const matches = combined.match(EN_STOPWORDS);
+  const pattern = expectedLang === "es" ? EN_STOPWORDS : ES_STOPWORDS;
+  // Reset lastIndex for global regex
+  pattern.lastIndex = 0;
+  const matches = combined.match(pattern);
   const hitCount = matches ? matches.length : 0;
   const wordCount = combined.split(/\s+/).length;
   const ratio = wordCount > 0 ? hitCount / wordCount : 0;
 
   console.log(
-    `[score] lang-check: ${hitCount} EN stopword hits in ${wordCount} words (ratio=${ratio.toFixed(3)})`
+    `[score] lang-check (expected=${expectedLang}): ${hitCount} wrong-lang hits in ${wordCount} words (ratio=${ratio.toFixed(3)})`
   );
 
-  // If more than 5% of words are English stopwords, flag it
+  // If more than 5% of words are wrong-language stopwords, flag it
   return ratio > 0.05;
 }
 
@@ -209,30 +218,83 @@ ${languageInstruction}`.trim();
 
     // --- First attempt ---
     let { parsed, usedModel } = await callAndParse(baseSystem);
+    let contentLanguage: "en" | "es" = lang;
 
-    // --- Language heuristic check + auto-retry ---
+    // --- Language heuristic check + translate-only fallback ---
     if (isWrongLanguage(parsed, lang)) {
       console.warn(
-        `[score] Wrong language detected (expected=${lang}). Retrying with stricter prompt…`
+        `[score] Wrong language detected (expected=${lang}). Running translation-only fallback…`
       );
 
-      const retrySystem = `${baseSystem}
+      const targetLabel = lang === "es" ? "Spanish" : "English";
+      const translateSystem = `You are a professional translator. Translate the JSON text arrays below into ${targetLabel}.
+Rules:
+- Translate ONLY the string values inside these arrays: "reasons", "unknowns", "red_flags", "discovery_questions", "next_best_actions".
+- Keep the same number of items in each array.
+- Do NOT change "overall_score", "score_breakdown", or "stage".
+- Return VALID JSON ONLY (no markdown, no extra text).
+- Every translated string must be entirely in ${targetLabel}. No mixed language.`;
 
-CRITICAL RETRY — THE PREVIOUS RESPONSE WAS IN THE WRONG LANGUAGE.
-You MUST return ALL text content in Spanish. ONLY Spanish.
-Every single string in reasons, unknowns, red_flags, discovery_questions, and next_best_actions must be in Spanish.
-If you absolutely cannot write in Spanish, return empty arrays for those fields.
-Do NOT output a single English sentence.`;
+      const translatePayload = {
+        reasons: parsed.reasons ?? [],
+        unknowns: parsed.unknowns ?? [],
+        red_flags: parsed.red_flags ?? [],
+        discovery_questions: parsed.discovery_questions ?? [],
+        next_best_actions: parsed.next_best_actions ?? [],
+      };
 
-      const retry = await callAndParse(retrySystem);
-      parsed = retry.parsed;
-      usedModel = retry.usedModel;
-      console.log(`[score] Retry complete (model=${usedModel})`);
+      try {
+        const translateMessages = [
+          {
+            role: "user" as const,
+            content: [
+              {
+                type: "text" as const,
+                text: `Translate these arrays to ${targetLabel}. Return ONLY valid JSON.\n\n${JSON.stringify(translatePayload, null, 2)}`,
+              },
+            ],
+          },
+        ];
 
-      if (isWrongLanguage(parsed, lang)) {
-        console.warn(
-          "[score] Retry still wrong language — returning result as-is."
-        );
+        let translateMsg: Anthropic.Messages.Message | undefined;
+        for (const model of models) {
+          try {
+            translateMsg = await client.messages.create({
+              model,
+              max_tokens: 900,
+              temperature: 0,
+              system: translateSystem,
+              messages: translateMessages,
+            });
+            break;
+          } catch (e: any) {
+            console.warn(`[score] Translation model "${model}" failed: ${e?.message ?? e}`);
+          }
+        }
+
+        if (translateMsg) {
+          const translateText = translateMsg.content
+            .filter((c: any) => c.type === "text")
+            .map((c: any) => c.text)
+            .join("\n")
+            .trim();
+
+          const translated = extractJSON(translateText) as Record<string, any>;
+
+          // Merge translated text fields into parsed, keeping scores/stage intact
+          for (const field of TEXT_FIELDS_TO_CHECK) {
+            if (Array.isArray(translated[field]) && translated[field].length > 0) {
+              parsed[field] = translated[field];
+            }
+          }
+
+          contentLanguage = lang;
+          console.log(`[score] Translation fallback complete.`);
+        }
+      } catch (e: any) {
+        console.warn(`[score] Translation fallback failed: ${e?.message ?? e}. Returning original.`);
+        // contentLanguage stays as detected wrong language
+        contentLanguage = lang === "es" ? "en" : "es";
       }
     }
 
@@ -258,6 +320,7 @@ Do NOT output a single English sentence.`;
       overall_score: overall,
       stage,
       score_breakdown: { fit, need, authority, timing, strategic },
+      content_language: contentLanguage,
     });
   } catch (err: any) {
     console.error("[score] POST /api/score failed:");
